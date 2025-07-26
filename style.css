@@ -17,6 +17,7 @@
     --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.4);
     --shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
+
 /* Nuevo estilo para el contenedor de subtítulos */
 .subtitle-container {
     position: fixed;
