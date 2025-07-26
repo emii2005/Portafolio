@@ -2,62 +2,41 @@
 gsap.registerPlugin(ScrollTrigger);
 
 // Three.js Scene Setup
-let scene, camera, renderer;
-let cubeGroup; // Cambiado de 'cube' a 'cubeGroup' para mayor claridad
+let scene, camera, renderer, cube;
+let cubeGroup;
 
 // --- Variables para control de Audio y Subtítulos ---
 let currentAudio = null; // Para controlar qué audio se está reproduciendo
-// audioEnabled es el estado GLOBAL de si el audio puede sonar.
-// Se inicializa en false y se activa con el primer clic del usuario.
-let audioEnabled = false; 
+let audioEnabled = false; // Estado global del audio (inicialmente false, activado por interacción)
 
 const subtitleContainer = document.getElementById('subtitleContainer');
 const subtitleText = document.getElementById('subtitleText'); // Donde se muestra el texto del subtítulo
 const soundToggleButton = document.getElementById('soundToggleButton');
 
-// --- Contadores de clics ---
+// Contadores de clics (projectsClickCount se mantiene)
 let projectsClickCount = 0;
-let nameClickCount = 0; // Contador para los clics en el nombre de Emiliano Méndez (Easter Egg)
-let idiotaSequenceIndex = 0; // Índice para la secuencia de audios 'idiota random'
 
-// Versos aleatorios (se reproducen con el temporizador de inactividad)
+// Versos aleatorios (no se reproducen automáticamente, solo con interacción del cubo)
 const randomVerses = [
     { id: 'audioVersoColor', text: '¿Sabías que mi color favorito es el negro???' },
     { id: 'audioVersoIrritado', text: 'Ahhh, ¿cuándo te vas a ir, mi querido amigo? Ya jodés.' },
     { id: 'audioVersoRepetido', text: '¿Sabías que la mayoría de estos audios se repiten? Porque me da una paja hacer más audios, je.' },
+    // AÑADIDO: El audio del cubo como un verso aleatorio
     { id: 'audioCuboSarcasmo', text: '¡Alto cubo, VISTE! Por favor, apreciado un montón. Me costó una hora y treinta minutos de mi vida. Cubo del ojete...' },
 ];
 let lastVerseIndex = -1; // Para evitar repetir el último verso
 
 let inactivityTimer; // Para el temporizador de versos aleatorios
-let countdownInterval; // Para el contador regresivo en la consola
-let remainingTimeSeconds = 0; // Para almacenar los segundos restantes
-
-// Secuencia de audios "Basta"
-const bastaAudios = [
-    { id: 'audioBasta1', text: 'Basta' },
-    { id: 'audioBasta2', text: 'Basta' },
-    { id: 'audioBasta3', text: 'BASTA YA.' },
-    { id: 'audioBasta4', text: '¡Diosss! No te aguanto más. ¿Podrías irte? O algo mejor, ¡jugá con el cubo Rubik, así te entrenás un poco!' },
-    { id: 'audioBasta5', text: '¡La puta madre! ¿Podés dejar de tocar mi nombre, hijo de puta? ¡Qué fastidio que sos, amigo! Andate de mi web.' },
-];
-
-// Audios "Idiota"
-const idiotaAudiosRandom = [ // Audios que se eligen aleatoriamente antes del final (clic 6 al 11)
-    { id: 'audioIdiota1', text: '¿SABÉS QUÉ? ¡QUE TE DEN! Ahora no vas a poder escuchar ningún audio de esta web.. Que te jodan. idiota.' },
-    { id: 'audioIdiota2', text: '¿SABÉS QUÉ? ¡QUE TE DEN! Ahora no vas a poder escuchar ningún audio de esta web.. Que te jodan. idiota.' },
-];
-// Este audio ahora BLOQUEARÁ el sonido SOLO para la sesión actual del navegador
-const idiotaAudioFinal = { id: 'audioIdiota3', text: '¡Sos un idiota! Conmigo no vas a escuchar más nada. Adiós a los sonidos de esta web.' };
+let countdownInterval; // Nuevo: Para el contador regresivo en la consola
+let remainingTimeSeconds = 0; // Nuevo: Para almacenar los segundos restantes
 
 
 // Referencias a elementos HTML para eventos de clic
-const cubeContainer = document.getElementById('cube-container');
+const cubeContainer = document.getElementById('cube-container'); // Se mantiene para initThreeJS
 const projectsTitle = document.getElementById('projects-title');
 const aboutTitle = document.getElementById('about-title');
 const aboutText1 = document.getElementById('about-text-1');
 const aboutText2 = document.getElementById('about-text-2');
-const heroNameClickable = document.querySelector('.hero-name'); // Elemento clickeable para el nombre
 
 
 // --- Funciones de Audio y Subtítulos ---
@@ -89,13 +68,10 @@ function stopCurrentAudio() {
  * Asegura que solo un audio se reproduzca a la vez.
  * @param {string} audioId - El ID del elemento <audio> en el HTML.
  * @param {string} subtitleContent - El texto completo a mostrar como subtítulo.
- * @param {function} [onEndedCallback] - Función a ejecutar cuando el audio termina.
  */
-function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null) {
-    // Si el audio no está habilitado globalmente, NO se reproduce NADA.
+function playAudioWithSubtitle(audioId, subtitleContent) {
     if (!audioEnabled) {
-        console.log(`%c[Audio Debug] Intento de reproducir audio ${audioId} BLOQUEADO. audioEnabled es false.`, 'color: orange;');
-        if (onEndedCallback) onEndedCallback(); // Asegurar que el callback se ejecute si no se reproduce
+        console.log(`[Audio Debug] Intento de reproducir audio ${audioId} pero audioEnabled es false.`);
         return;
     }
 
@@ -107,7 +83,7 @@ function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null)
 
         // Preparar los segmentos del subtítulo
         const words = subtitleContent.split(/\s+/);
-        const minWordsPerChunk = 7; 
+        const minWordsPerChunk = 7; // Ajustado a 7 palabras por chunk para un flujo más rápido
         const chunks = [];
         let currentChunk = [];
 
@@ -121,16 +97,16 @@ function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null)
         
         let currentChunkIndex = 0;
 
-        // Mostrar el primer chunk del subtítulo
+        // Show the initial subtitle chunk
         if (subtitleContainer && subtitleText) {
             subtitleText.textContent = chunks[0] || '';
             subtitleContainer.classList.add('show');
         }
 
-        audio.load(); // Forzar la carga del audio (útil para Chrome y para asegurar la reproducción)
+        audio.load(); // Forzar la carga del audio
         
         audio.play().then(() => {
-            console.log(`%c[Audio Debug] Audio ${audioId} se reprodujo con éxito.`, 'color: green;');
+            console.log(`[Audio Debug] Audio ${audioId} se reprodujo con éxito.`);
 
             // Manejar la actualización del subtítulo con el tiempo
             audio.ontimeupdate = () => {
@@ -146,38 +122,18 @@ function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null)
             };
 
             audio.onended = () => {
-                console.log(`%c[Audio Debug] Audio ${audioId} ha terminado.`, 'color: green;');
+                console.log(`[Audio Debug] Audio ${audioId} ha terminado.`);
                 stopCurrentAudio(); // Esto también oculta subtítulos y limpia currentAudio
-                if (onEndedCallback) { // Si hay un callback, se ejecuta
-                    onEndedCallback();
-                } else {
-                    // Reiniciar el temporizador de inactividad solo si audioEnabled sigue siendo true
-                    if (audioEnabled) {
-                        toggleInactivityTimer(true); 
-                    }
-                }
+                toggleInactivityTimer(true); // Reiniciar el temporizador de inactividad
             };
             
         }).catch(e => {
-            console.error(`%c[Audio Error] Error al reproducir audio ${audioId}:`, 'color: red;', e);
-            console.warn(`%c[Audio Warn] Esto a menudo ocurre debido a políticas de autoplay. Asegúrate de que el usuario haga un primer clic en el botón 'Activar Sonido' o en algún lugar de la página.`, 'color: yellow;');
-            // Si el autoplay falla, asegurar que el audioEnabled esté en false y el botón sea visible.
-            if (audioId.includes('Bienvenida')) { // Solo para el audio de bienvenida inicial
-                audioEnabled = false; 
-                if (soundToggleButton) {
-                    soundToggleButton.textContent = 'Activar Sonido';
-                    soundToggleButton.style.display = 'block'; 
-                    soundToggleButton.disabled = false;
-                    soundToggleButton.style.opacity = '1';
-                    soundToggleButton.style.cursor = 'pointer';
-                }
-            }
-            stopCurrentAudio();
-            if (onEndedCallback) onEndedCallback(); // Asegurar que el callback se ejecute incluso en error
+            console.error(`[Audio Error] Error al reproducir audio ${audioId}:`, e);
+            console.warn(`[Audio Warn] Esto a menudo ocurre en móvil debido a políticas de autoplay. Asegúrate de que el usuario haga un primer clic en el botón 'Activar Sonido'.`);
+            stopCurrentAudio(); // Ocultar subtítulo y limpiar si hay error
         });
     } else {
-        console.error(`%c[Audio Error] Elemento de audio con ID ${audioId} no encontrado. Asegúrate de que el ID esté bien y el archivo esté cargado en el HTML.`, 'color: red;');
-        if (onEndedCallback) onEndedCallback(); // Asegurar que el callback se ejecute si el audio no existe
+        console.error(`[Audio Error] Elemento de audio con ID ${audioId} no encontrado.`);
     }
 }
 
@@ -188,16 +144,21 @@ function toggleInactivityTimer(start) {
     if (inactivityTimer) {
         clearTimeout(inactivityTimer);
     }
+    // Detener y limpiar el intervalo de conteo regresivo
     clearInterval(countdownInterval);
-    console.log("%c[Consola Debug] Contador anterior para el próximo audio reiniciado.", 'color: lightblue;');
+    console.log("[Consola Debug] Contador anterior para el próximo audio reiniciado.");
 
-    // Solo iniciar el temporizador si el audio está habilitado globalmente
+
     if (start && audioEnabled) {
+        // Retraso aleatorio entre 30 y 60 segundos
         const delay = (Math.random() * 30 + 30) * 1000; 
         
-        remainingTimeSeconds = Math.floor(delay / 1000); 
+        remainingTimeSeconds = Math.floor(delay / 1000); // Inicializar segundos restantes
+
+        // Mostrar el tiempo inicial en consola
         console.log(`%c[Consola Debug] Próximo audio aleatorio en: ${remainingTimeSeconds} segundos.`, 'color: lightblue;');
 
+        // Iniciar el contador regresivo en la consola
         countdownInterval = setInterval(() => {
             remainingTimeSeconds--;
             if (remainingTimeSeconds > 0) {
@@ -206,12 +167,12 @@ function toggleInactivityTimer(start) {
                 clearInterval(countdownInterval);
                 console.log("%c[Consola Debug] ¡Reproduciendo próximo audio aleatorio!", 'color: limegreen; font-weight: bold;');
             }
-        }, 1000); 
+        }, 1000); // Actualizar cada segundo
 
         inactivityTimer = setTimeout(playRandomVerse, delay);
-        console.log(`%c[Timer Debug] Temporizador de inactividad iniciado para ${delay / 1000} segundos.`, 'color: darkcyan;');
+        console.log(`[Timer Debug] Temporizador de inactividad iniciado para ${delay / 1000} segundos.`);
     } else if (!start) {
-        console.log("%c[Timer Debug] Temporizador de inactividad detenido.", 'color: darkcyan;');
+        console.log("[Timer Debug] Temporizador de inactividad detenido.");
     }
 }
 
@@ -219,12 +180,9 @@ function toggleInactivityTimer(start) {
  * Reproduce un verso aleatorio que no sea el último.
  */
 function playRandomVerse() {
-    // Solo reproducir si el audio está habilitado globalmente y no hay otro audio sonando
-    if (!audioEnabled || currentAudio) { 
-        console.log("%c[Random Verse Debug] No se reproduce verso aleatorio: audio deshabilitado o ya hay uno sonando.", 'color: orange;');
-        if (audioEnabled) { // Reintentar si no se puede reproducir ahora pero el audio está activo
-             toggleInactivityTimer(true); 
-        }
+    if (!audioEnabled || currentAudio) {
+        console.log("[Random Verse Debug] No se reproduce verso aleatorio: audio deshabilitado o ya hay uno sonando.");
+        if (audioEnabled) toggleInactivityTimer(true); // Reintentar si no se puede reproducir ahora
         return;
     }
 
@@ -235,35 +193,8 @@ function playRandomVerse() {
 
     lastVerseIndex = nextVerseIndex;
     const verse = randomVerses[nextVerseIndex];
-    console.log(`%c[Random Verse Debug] Reproduciendo verso aleatorio: ${verse.id}`, 'color: purple;');
+    console.log(`[Random Verse Debug] Reproduciendo verso aleatorio: ${verse.id}`);
     playAudioWithSubtitle(verse.id, verse.text);
-}
-
-
-// --- Lógica del Bloqueo de Audio por la Secuencia "Idiota" ---
-
-/**
- * Finaliza la secuencia Idiota: reproduce el audio final y bloquea todo el sonido
- * para la **sesión actual del navegador**.
- */
-function finishIdiotaSequence() {
-    playAudioWithSubtitle(idiotaAudioFinal.id, idiotaAudioFinal.text, () => {
-        console.log("%c[Idiota Sequence] Audio final 'Sos un idiota' terminado. Desactivando todo el audio de la web para esta carga de página.", 'color: red; font-weight: bold;');
-        
-        audioEnabled = false; // Deshabilitar audio globalmente y permanentemente para ESTA CARGA DE PÁGINA
-        stopCurrentAudio(); // Asegurar que no quede nada sonando
-        toggleInactivityTimer(false); // Detener el temporizador de audios aleatorios
-        
-        // Actualizar el botón para que indique que el sonido está desactivado y hacerlo visible
-        if (soundToggleButton) {
-            soundToggleButton.textContent = 'Sonido Desactivado'; 
-            soundToggleButton.style.display = 'block'; 
-            soundToggleButton.disabled = true; // Deshabilitar el botón
-            soundToggleButton.style.opacity = '0.5'; 
-            soundToggleButton.style.cursor = 'not-allowed';
-            console.log("%c[Idiota Sequence] Botón 'Activar Sonido' deshabilitado.", 'color: red;');
-        }
-    });
 }
 
 
@@ -368,7 +299,7 @@ function createRubiksCube() {
     scene.add(cubeGroup);
 }
 
-// --- GSAP Animations (sin cambios) ---
+// --- GSAP Animations ---
 function initAnimations() {
     gsap.set(".hero-name", { opacity: 0, x: -50 });
     gsap.set(".hero-subtitle", { opacity: 0, x: -30 });
@@ -411,7 +342,7 @@ function initAnimations() {
     });
 }
 
-// VanillaTilt initialization (sin cambios)
+// VanillaTilt initialization
 function initTilt() {
     VanillaTilt.init(document.querySelectorAll(".project-card"), {
         max: 15,
@@ -421,7 +352,7 @@ function initTilt() {
     });
 }
 
-// Smooth scrolling for navigation (sin cambios)
+// Smooth scrolling for navigation
 function initSmoothScroll() {
     ScrollTrigger.create({
         trigger: "body",
@@ -434,7 +365,7 @@ function initSmoothScroll() {
     });
 }
 
-// Parallax effects (sin cambios)
+// Parallax effects
 function initParallax() {
     gsap.to(".hero-left", {
         yPercent: -50,
@@ -460,173 +391,88 @@ function initParallax() {
 }
 
 // --- Gestión del Sonido Global ---
-
-/**
- * Función para reproducir el audio de bienvenida cuando el usuario activa el sonido.
- */
-function playWelcomeAudio() {
-    const welcomeAudio = document.getElementById('audioBienvenidaCasual');
-    const welcomeSubtitleText = "Ahg, otra vez vos... ¿Qué onda? ¿Qué hacés acá? Sí, la web está en español, pero el audio en inglés porque me da paja grabar mi voz, je. Soy argentino por si querés saber.";
-    
-    if (welcomeAudio) {
-        // Solo reproducir si no se ha reproducido antes en esta carga de página
-        if (!welcomeAudio.dataset.played) {
-            playAudioWithSubtitle('audioBienvenidaCasual', welcomeSubtitleText, () => {
-                welcomeAudio.dataset.played = 'true'; // Marcar como reproducido para esta carga
-                if (audioEnabled) { // Solo si el audio sigue habilitado después de la bienvenida
-                    toggleInactivityTimer(true);
-                }
-            });
-        } else {
-            console.log("%c[Welcome Audio] Audio de bienvenida ya se reprodujo en esta carga. Iniciando temporizador (si audio está habilitado).", 'color: blue;');
-            if (audioEnabled) {
-                toggleInactivityTimer(true);
-            }
-        }
-    } else {
-        console.error("%c[Sound Debug] Audio de bienvenida casual no encontrado. Asegúrate de que el ID esté bien y el archivo esté cargado en el HTML.", 'color: red;');
-        if (audioEnabled) {
-             toggleInactivityTimer(true); // Si no hay bienvenida, pero el audio está activo, iniciar temporizador.
-        }
-    }
-}
-
-
-/**
- * Configura el botón de activar/desactivar sonido.
- */
 function setupSoundToggleButton() {
     if (!soundToggleButton) {
         console.error("soundToggleButton not found. Make sure an element with id 'soundToggleButton' exists in your HTML.");
         return;
     }
 
-    // Al inicio, el botón debe ser visible y pedir al usuario que active el sonido
-    soundToggleButton.textContent = 'Activar Sonido';
-    soundToggleButton.style.display = 'block';
-    soundToggleButton.disabled = false;
-    soundToggleButton.style.opacity = '1';
-    soundToggleButton.style.cursor = 'pointer';
-
     soundToggleButton.addEventListener('click', () => {
-        // Ignorar clic si ya estamos reproduciendo un audio (para evitar interrupciones bruscas)
-        if (currentAudio) {
-            console.log("%c[Sound Toggle] No se puede cambiar el estado mientras un audio se reproduce.", 'color: orange;');
-            return;
-        }
-
-        audioEnabled = !audioEnabled; // Cambiar el estado global del audio
+        audioEnabled = !audioEnabled;
         soundToggleButton.textContent = audioEnabled ? 'Desactivar Sonido' : 'Activar Sonido';
-        stopCurrentAudio(); // Detener cualquier cosa que pudiera estar sonando
-
-        console.log(`%c[Sound Toggle] audioEnabled ahora es: ${audioEnabled}`, 'color: deepskyblue;');
+        stopCurrentAudio();
+        console.log(`[Sound Toggle] audioEnabled ahora es: ${audioEnabled}`); // Debugging
         
         if (audioEnabled) {
-            playWelcomeAudio(); // Reproducir bienvenida solo si el usuario lo activa
+            const bienvenidaAudio = document.getElementById('audioBienvenidaCasual');
+            // Solo reproducir si no se ha reproducido antes
+            if (bienvenidaAudio && !bienvenidaAudio.dataset.played) {
+                 playAudioWithSubtitle('audioBienvenidaCasual', "Ahg, otra vez vos... ¿Qué onda? ¿Qué hacés acá? Sí, la web está en español, pero el audio en inglés porque me da paja grabar mi voz, je. Soy argentino por si querés saber.");
+                 bienvenidaAudio.dataset.played = 'true'; // Marcar como reproducido
+            } else if (!bienvenidaAudio) {
+                 console.error("[Sound Debug] Audio de bienvenida no encontrado.");
+                 toggleInactivityTimer(true); // Si no hay bienvenida, inicia el temporizador de inmediato
+            } else {
+                // Si la bienvenida ya se reprodujo, pero se activa el sonido, inicia el temporizador
+                toggleInactivityTimer(true);
+            }
         } else {
-            toggleInactivityTimer(false); // Si el usuario desactiva el sonido, detener el temporizador
+            toggleInactivityTimer(false); // Detener el temporizador si el audio se desactiva
         }
     });
+
+    const bienvenidaAudio = document.getElementById('audioBienvenidaCasual');
+    if (bienvenidaAudio) {
+        bienvenidaAudio.play()
+            .then(() => {
+                audioEnabled = true;
+                soundToggleButton.textContent = 'Desactivar Sonido';
+                soundToggleButton.style.display = 'none';
+                console.log("[Sound Debug] Audio de bienvenida reproducido automáticamente.");
+                bienvenidaAudio.dataset.played = 'true'; // Marcar como reproducido
+            })
+            .catch(e => {
+                console.warn("[Sound Warn] Autoplay de bienvenida bloqueado. El botón 'Activar Sonido' está visible.", e);
+                soundToggleButton.style.display = 'block';
+                audioEnabled = false;
+            });
+    }
 }
 
 
 // --- Inicialización de Eventos para Interacciones de Voz ---
 function initVoiceInteractions() {
+    // ELIMINADO: La interacción de clic/touch con el cubo ya no está aquí.
 
-
-        // Reiniciar si el usuario se tarda más de 2 segundos entre clics
-        clearTimeout(nameClickTimeout);
-        nameClickTimeout = setTimeout(() => {
-            console.log('%c[Name Click Debug] Se reinició el contador por inactividad', 'color: gray;');
-            nameClickCount = 0;
-        }, 2000);
-
-        if (nameClickCount === 12) {
-            console.log('%c[Name Click Debug] Se activó el Easter Egg después de 12 clics seguidos', 'color: limegreen;');
-
-            const sequence = [...bastaAudios, ...idiotaAudiosRandom, idiotaAudioFinal];
-            playAudioSequence(sequence);
-            nameClickCount = 0;
-            clearTimeout(nameClickTimeout);
-        }
-    });
-}
-
-// Función para reproducir una secuencia de audios uno tras otro
-function playAudioSequence(audios, index = 0) {
-    if (index >= audios.length) return;
-
-    const audio = audios[index];
-    playAudioWithSubtitle(audio.id, audio.text, () => {
-        playAudioSequence(audios, index + 1);
-    });
-}
-    
-
-            // Si el audio está deshabilitado, no reproducimos nada
-            if (!audioEnabled) {
-                console.log("%c[Name Click Debug] Audio deshabilitado. Haz clic en el botón 'Activar Sonido' para habilitarlo.", 'color: orange;');
-                return;
-            }
-            
-            nameClickCount++;
-
-            // Secuencia "Basta" (clics 1 al 5)
-            if (nameClickCount >= 1 && nameClickCount <= bastaAudios.length) {
-                const audioData = bastaAudios[nameClickCount - 1];
-                playAudioWithSubtitle(audioData.id, audioData.text);
-            } 
-            // Audios aleatorios "Idiota" (del clic 6 al 11)
-            else if (nameClickCount > bastaAudios.length && nameClickCount < 12) {
-                let nextIdiotaIndex;
-                do {
-                    nextIdiotaIndex = Math.floor(Math.random() * idiotaAudiosRandom.length);
-                } while (idiotaAudiosRandom.length > 1 && nextIdiotaIndex === idiotaSequenceIndex);
-                
-                idiotaSequenceIndex = nextIdiotaIndex; 
-                const audioData = idiotaAudiosRandom[idiotaSequenceIndex];
-                playAudioWithSubtitle(audioData.id, audioData.text);
-
-            } 
-            // Audio final "Sos un idiota" y bloqueo (al clic 12)
-            else if (nameClickCount === 12) {
-                finishIdiotaSequence();
-                nameClickCount = 0; // Reinicia el contador para una nueva "sesión" si el usuario recarga
-            }
-        });
-    }
-
-    // 2. Voz al tocar el título "Proyectos" más de 3 veces
+    // 3. Voz al tocar el título "Proyectos" más de 3 veces
     if (projectsTitle) {
         projectsTitle.addEventListener('click', () => {
-            console.log(`%c[Projects Click Debug] Clic en Proyectos. audioEnabled: ${audioEnabled}, projectsClickCount: ${projectsClickCount + 1}.`, 'color: lightcoral;');
-            
+            console.log(`[Projects Click Debug] Clic en Proyectos. audioEnabled: ${audioEnabled}, projectsClickCount: ${projectsClickCount + 1}`); // Debugging
             if (!audioEnabled) {
-                console.log("%c[Projects Click Debug] Audio desactivado. No se reproduce audio de Proyectos.", 'color: orange;');
+                console.log("[Projects Click Debug] El sonido está desactivado. Haz clic en el botón 'Activar Sonido' para habilitarlo.");
                 return;
             }
             projectsClickCount++;
             if (projectsClickCount >= 3) {
                 playAudioWithSubtitle('audioProyectosBurlon', "Ah, ¿esos son los proyectos en mente? ¡No jodas, nene, andá a otra sección! No hay ningún proyecto por ahora.");
-                projectsClickCount = 0; // Reinicia el contador para poder volver a activarlo
+                projectsClickCount = 0;
             }
         });
     }
 
-    // 3. Voz al tocar "Sobre mí", describe todo lo que dice
+    // 4. Voz al tocar "Sobre mí", describe todo lo que dice
     if (aboutTitle) {
         aboutTitle.addEventListener('click', () => {
-            console.log(`%c[About Click Debug] Clic en Sobre mí. audioEnabled: ${audioEnabled}.`, 'color: mediumpurple;');
-            
+            console.log(`[About Click Debug] Clic en Sobre mí. audioEnabled: ${audioEnabled}`); // Debugging
             if (!audioEnabled) {
-                console.log("%c[About Click Debug] Audio desactivado. No se reproduce audio de Sobre mí.", 'color: orange;');
+                console.log("[About Click Debug] El sonido está desactivado. Haz clic en el botón 'Activar Sonido' para habilitarlo.");
                 return;
             }
             let fullAboutText = '';
             if (aboutText1) {
                 fullAboutText += aboutText1.textContent.trim();
             }
-            if (aboutText2) { 
+            if (aboutText2) {
                 fullAboutText += " " + aboutText2.textContent.trim();
             }
             playAudioWithSubtitle('audioSobreMiNarrativo', fullAboutText);
@@ -637,7 +483,7 @@ function playAudioSequence(audios, index = 0) {
 
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    setupSoundToggleButton(); // Configura el botón de sonido al cargar.
+    setupSoundToggleButton();
     initThreeJS();
     
     // Un pequeño retraso para asegurar que todos los elementos estén renderizados
@@ -646,7 +492,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initTilt();
         initSmoothScroll();
         initParallax();
-        initVoiceInteractions(); 
+        initVoiceInteractions();
     }, 100);
 });
 
@@ -655,11 +501,10 @@ document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
         if (renderer) { renderer.setAnimationLoop(null); }
         stopCurrentAudio();
-        toggleInactivityTimer(false); 
-        console.log("%c[Visibility Debug] Página oculta. Audio y temporizador detenidos.", 'color: grey;');
+        toggleInactivityTimer(false); // Asegura que el temporizador principal esté detenido
+        console.log("[Visibility Debug] Página oculta. Audio y temporizador detenidos.");
     } else {
         if (renderer) {
-            // Reanudar la animación del cubo
             function animateLoop() {
                 requestAnimationFrame(animateLoop);
                 if (cubeGroup) {
@@ -670,10 +515,11 @@ document.addEventListener('visibilitychange', function() {
             }
             renderer.setAnimationLoop(animateLoop);
         }
-        // Solo reanudar el temporizador si el audio está habilitado Y no hay un audio reproduciéndose
+        // Solo reiniciar el temporizador si el audio está habilitado y NO hay un audio sonando.
+        // Si hay un audio sonando, su onended se encargará de reiniciar el temporizador.
         if (audioEnabled && !currentAudio) { 
             toggleInactivityTimer(true); 
         }
-        console.log(`%c[Visibility Debug] Página visible. Audio y temporizador reanudados si audioEnabled: ${audioEnabled}.`, 'color: grey;');
+        console.log(`[Visibility Debug] Página visible. Audio y temporizador reanudados si audioEnabled: ${audioEnabled}.`);
     }
 });
