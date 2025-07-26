@@ -532,18 +532,7 @@ function setupSoundToggleButton() {
 
 // --- Inicialización de Eventos para Interacciones de Voz ---
 function initVoiceInteractions() {
-    // 1. Lógica para el clic en el nombre "Emiliano Méndez" (hero-name) (Easter Egg)if (heroNameClickable) {
-    let nameClickCount = 0;
-    let nameClickTimeout = null;
 
-    heroNameClickable.addEventListener('click', () => {
-        if (!audioEnabled) {
-            console.log("%c[Name Click Debug] Audio deshabilitado.", 'color: orange;');
-            return;
-        }
-
-        nameClickCount++;
-        console.log(`%c[Name Click Debug] Clic #${nameClickCount}`, 'color: brown;');
 
         // Reiniciar si el usuario se tarda más de 2 segundos entre clics
         clearTimeout(nameClickTimeout);
