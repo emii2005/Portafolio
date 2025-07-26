@@ -21,6 +21,8 @@ const randomVerses = [
     { id: 'audioVersoColor', text: '¿Sabías que mi color favorito es el negro???' },
     { id: 'audioVersoIrritado', text: 'Ahhh, ¿cuándo te vas a ir, mi querido amigo? Ya jodés.' },
     { id: 'audioVersoRepetido', text: '¿Sabías que la mayoría de estos audios se repiten? Porque me da una paja hacer más audios, je.' },
+    // AÑADIDO: El audio del cubo como un verso aleatorio
+    { id: 'audioCuboSarcasmo', text: '¡Alto cubo, VISTE! Por favor, apreciado un montón. Me costó una hora y treinta minutos de mi vida. Cubo del ojete...' },
 ];
 let lastVerseIndex = -1; // Para evitar repetir el último verso
 
@@ -30,7 +32,7 @@ let remainingTimeSeconds = 0; // Nuevo: Para almacenar los segundos restantes
 
 
 // Referencias a elementos HTML para eventos de clic
-const cubeContainer = document.getElementById('cube-container');
+const cubeContainer = document.getElementById('cube-container'); // Se mantiene para initThreeJS
 const projectsTitle = document.getElementById('projects-title');
 const aboutTitle = document.getElementById('about-title');
 const aboutText1 = document.getElementById('about-text-1');
@@ -440,26 +442,7 @@ function setupSoundToggleButton() {
 
 // --- Inicialización de Eventos para Interacciones de Voz ---
 function initVoiceInteractions() {
-    // 1. Voz al tocar el cubo
-    if (cubeContainer) {
-        cubeContainer.addEventListener('click', () => {
-            console.log(`[Cube Click Debug] Clic en el cubo. audioEnabled: ${audioEnabled}`); // Debugging
-            if (!audioEnabled) {
-                console.log("[Cube Click Debug] El sonido está desactivado. Haz clic en el botón 'Activar Sonido' para habilitarlo.");
-                return;
-            }
-
-            // Pausar cualquier temporizador de inactividad al interactuar con el cubo
-            toggleInactivityTimer(false);
-
-            // Reproducir audio del cubo
-            playAudioWithSubtitle('audioCuboSarcasmo', "¡Alto cubo, VISTE! Por favor, apreciado un montón. Me costó una hora y treinta minutos de mi vida. Cubo del ojete...");
-        });
-    }
-
-    // 2. Voz aleatoria al hacer scroll o pasar un tiempo sin actividad
-    // Esta lógica ya está gestionada por toggleInactivityTimer y playRandomVerse
-    // y se activa/desactiva con el botón de sonido.
+    // ELIMINADO: La interacción de clic/touch con el cubo ya no está aquí.
 
     // 3. Voz al tocar el título "Proyectos" más de 3 veces
     if (projectsTitle) {
