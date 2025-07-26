@@ -532,10 +532,47 @@ function setupSoundToggleButton() {
 
 // --- Inicialización de Eventos para Interacciones de Voz ---
 function initVoiceInteractions() {
-    // 1. Lógica para el clic en el nombre "Emiliano Méndez" (hero-name) (Easter Egg)
-    if (heroNameClickable) {
-        heroNameClickable.addEventListener('click', () => {
-            console.log(`%c[Name Click Debug] Clic en el nombre. nameClickCount: ${nameClickCount + 1}. AudioEnabled: ${audioEnabled}.`, 'color: brown;');
+    // 1. Lógica para el clic en el nombre "Emiliano Méndez" (hero-name) (Easter Egg)if (heroNameClickable) {
+    let nameClickCount = 0;
+    let nameClickTimeout = null;
+
+    heroNameClickable.addEventListener('click', () => {
+        if (!audioEnabled) {
+            console.log("%c[Name Click Debug] Audio deshabilitado.", 'color: orange;');
+            return;
+        }
+
+        nameClickCount++;
+        console.log(`%c[Name Click Debug] Clic #${nameClickCount}`, 'color: brown;');
+
+        // Reiniciar si el usuario se tarda más de 2 segundos entre clics
+        clearTimeout(nameClickTimeout);
+        nameClickTimeout = setTimeout(() => {
+            console.log('%c[Name Click Debug] Se reinició el contador por inactividad', 'color: gray;');
+            nameClickCount = 0;
+        }, 2000);
+
+        if (nameClickCount === 12) {
+            console.log('%c[Name Click Debug] Se activó el Easter Egg después de 12 clics seguidos', 'color: limegreen;');
+
+            const sequence = [...bastaAudios, ...idiotaAudiosRandom, idiotaAudioFinal];
+            playAudioSequence(sequence);
+            nameClickCount = 0;
+            clearTimeout(nameClickTimeout);
+        }
+    });
+}
+
+// Función para reproducir una secuencia de audios uno tras otro
+function playAudioSequence(audios, index = 0) {
+    if (index >= audios.length) return;
+
+    const audio = audios[index];
+    playAudioWithSubtitle(audio.id, audio.text, () => {
+        playAudioSequence(audios, index + 1);
+    });
+}
+    
 
             // Si el audio está deshabilitado, no reproducimos nada
             if (!audioEnabled) {
