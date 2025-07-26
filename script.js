@@ -523,3 +523,59 @@ document.addEventListener('visibilitychange', function() {
         console.log(`[Visibility Debug] Página visible. Audio y temporizador reanudados si audioEnabled: ${audioEnabled}.`);
     }
 });
+
+const themes = [
+    {
+        name: "default",
+        props: {
+            "--color-primary": "#0a0a0a",
+            "--color-secondary": "#1a1a1a",
+            "--color-accent": "#333333",
+            "--color-tertiary": "#2a2a2a",
+            "--color-white": "#ffffff",
+            "--color-gray-light": "#808080",
+            "--color-gray-dark": "#404040"
+        }
+    },
+    {
+        name: "retro",
+        props: {
+            "--color-primary": "#f4f1de",
+            "--color-secondary": "#e07a5f",
+            "--color-accent": "#3d405b",
+            "--color-tertiary": "#81b29a",
+            "--color-white": "#f2cc8f",
+            "--color-gray-light": "#3d405b",
+            "--color-gray-dark": "#2a2a2a"
+        }
+    },
+    {
+        name: "hacker",
+        props: {
+            "--color-primary": "#000000",
+            "--color-secondary": "#0f0f0f",
+            "--color-accent": "#00ff00",
+            "--color-tertiary": "#003300",
+            "--color-white": "#00ff00",
+            "--color-gray-light": "#00cc00",
+            "--color-gray-dark": "#003300"
+        }
+    }
+];
+
+let currentThemeIndex = 0;
+
+function applyTheme(theme) {
+    for (const prop in theme.props) {
+        document.documentElement.style.setProperty(prop, theme.props[prop]);
+    }
+    console.log(`[Theme Switcher] Tema activo: ${theme.name}`);
+}
+
+const switcher = document.getElementById("themeSwitcher");
+if (switcher) {
+    switcher.addEventListener("click", () => {
+        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+        applyTheme(themes[currentThemeIndex]);
+    });
+}

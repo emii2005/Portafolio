@@ -421,3 +421,23 @@ body::before {
         height: 200px;
     }
 }
+
+.theme-switcher {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--color-accent);
+    color: var(--color-white);
+    padding: 10px 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+    font-size: 0.9rem;
+}
+
+.theme-switcher:hover {
+    background: var(--color-white);
+    color: var(--color-primary);
+}
