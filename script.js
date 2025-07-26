@@ -483,4 +483,144 @@ function setupSoundToggleButton() {
 
             const currentWelcomeAudio = document.getElementById(welcomeAudioId);
 
-            /
+            // Solo reproducir la bienvenida si existe y no se ha reproducido ya en esta sesión.
+            if (currentWelcomeAudio && !currentWelcomeAudio.dataset.played) {
+                playAudioWithSubtitle(welcomeAudioId, welcomeSubtitleText, () => {
+                    // Callback después de reproducir el audio de bienvenida
+                    if (idiotaWelcomeTriggered) {
+                        // Si se reprodujo la bienvenida idiota, limpiar la bandera para la siguiente sesión
+                        localStorage.removeItem('idiotaWelcomeTriggered'); 
+                        console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada. Próxima recarga será normal.");
+                    }
+                    toggleInactivityTimer(true); // Iniciar el temporizador de audios aleatorios después de la bienvenida
+                });
+                currentWelcomeAudio.dataset.played = 'true'; // Marcar como reproducido para esta sesión
+            } else if (!currentWelcomeAudio) {
+                console.error(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) no encontrado.`);
+                if (idiotaWelcomeTriggered) { // Si el audio idiota no existe, limpiar la bandera para no quedarse atascado
+                    localStorage.removeItem('idiotaWelcomeTriggered');
+                    console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada debido a audio no encontrado.");
+                }
+                toggleInactivityTimer(true); // Intentar iniciar temporizador de todas formas
+            } else { 
+                // El audio de bienvenida ya se reprodujo en esta sesión (ej: usuario desactivó/activó varias veces)
+                console.log(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) ya se reprodujo en esta sesión.`);
+                toggleInactivityTimer(true); // Iniciar el temporizador (si no hay audio actual)
+            }
+        } else {
+            // Si el audio se desactiva manualmente
+            toggleInactivityTimer(false); // Detener el temporizador de audios aleatorios
+        }
+    });
+}
+
+
+// --- Inicialización de Eventos para Interacciones de Voz ---
+function initVoiceInteractions() {
+
+    // 1. Lógica para la secuencia "Basta" e "Idiota" al hacer clic en el nombre
+    if (heroNameClickable) {
+        heroNameClickable.addEventListener('click', () => {
+            console.log(`[Name Click Debug] Clic en el nombre. Clicks: ${nameClickCount + 1}. AudioEnabled: ${audioEnabled}.`);
+            
+            // Si el audio no está habilitado por el usuario, informarle y salir.
+            if (!audioEnabled) {
+                console.log("[Name Click] El sonido está desactivado. Haz clic en el botón 'Activar Sonido' para habilitarlo.");
+                return;
+            }
+
+            nameClickCount++;
+
+            if (nameClickCount >= 7 && nameClickCount <= 11) {
+                // Secuencia "Basta"
+                const currentBastaAudio = bastaAudios[nameClickCount - 7]; 
+                if (currentBastaAudio) {
+                    playAudioWithSubtitle(currentBastaAudio.id, currentBastaAudio.text);
+                } else {
+                    console.warn(`[Name Click] No hay audio definido para basta${nameClickCount - 6}.`);
+                }
+            } else if (nameClickCount === 12) {
+                // Iniciar secuencia "Idiota"
+                console.log("[Name Click] ¡Límite de clics alcanzado! Iniciando secuencia 'Idiota'.");
+                startIdiotaSequence();
+            } else if (nameClickCount > 12) {
+                // Una vez que la secuencia "idiota" se activó, este listener no debería hacer nada más
+                console.log("[Name Click] La secuencia 'Idiota' ya se ha activado. Clics ignorados.");
+                nameClickCount = 12; // Mantenerlo en 12 para que no siga contando innecesariamente
+            }
+        });
+    }
+
+    // 2. Voz al tocar el título "Proyectos" más de 3 veces
+    if (projectsTitle) {
+        projectsTitle.addEventListener('click', () => {
+            if (!audioEnabled) { // Verificar audioEnabled
+                console.log("[Projects Click] El sonido está desactivado.");
+                return;
+            }
+            projectsClickCount++;
+            if (projectsClickCount >= 3) {
+                playAudioWithSubtitle('audioProyectosBurlon', "Ah, ¿esos son los proyectos en mente? ¡No jodas, nene, andá a otra sección! No hay ningún proyecto por ahora.");
+                projectsClickCount = 0; 
+            }
+        });
+    }
+
+    // 3. Voz al tocar "Sobre mí", describe todo lo que dice
+    if (aboutTitle) {
+        aboutTitle.addEventListener('click', () => {
+            if (!audioEnabled) { // Verificar audioEnabled
+                console.log("[About Click] El sonido está desactivado.");
+                return;
+            }
+            let fullAboutText = '';
+            if (aboutText1) {
+                fullAboutText += aboutText1.textContent.trim();
+            }
+            playAudioWithSubtitle('audioSobreMiNarrativo', fullAboutText);
+        });
+    }
+}
+
+
+// Initialize everything when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    setupSoundToggleButton(); // Configura el botón y no reproduce nada aún
+    initThreeJS();
+    
+    // Un pequeño retraso para asegurar que todos los elementos estén renderizados
+    setTimeout(() => {
+        initAnimations();
+        initTilt();
+        initSmoothScroll();
+        initParallax();
+        initVoiceInteractions(); 
+    }, 100);
+});
+
+// Handle page visibility changes
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        if (renderer) { renderer.setAnimationLoop(null); }
+        stopCurrentAudio();
+        toggleInactivityTimer(false); 
+        console.log("[Visibility Debug] Página oculta. Audio y temporizador detenidos.");
+    } else {
+        if (renderer) {
+            function animateLoop() {
+                requestAnimationFrame(animateLoop);
+                if (cubeGroup) {
+                    cubeGroup.rotation.y += 0.005;
+                    cubeGroup.position.y = Math.sin(Date.now() * 0.001) * 0.1;
+                }
+                renderer.render(scene, camera);
+            }
+            renderer.setAnimationLoop(animateLoop);
+        }
+        // Solo reanudar el temporizador si el audio está habilitado Y no hay un audio reproduciéndose actualmente
+        if (audioEnabled && !currentAudio) { 
+            toggleInactivityTimer(true); 
+        }
+        console.log(`[Visibility Debug] Página visible. Audio y temporizador reanudados si audioEnabled: ${audioEnabled}.`);
+    }
+});
