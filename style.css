@@ -17,7 +17,32 @@
     --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.4);
     --shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
+/* Nuevo estilo para el contenedor de subtítulos */
+.subtitle-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7); /* Fondo semi-transparente oscuro */
+    color: var(--color-white);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    opacity: 0; /* Inicialmente oculto */
+    visibility: hidden; /* Oculto para lectores de pantalla también */
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000; /* Asegura que esté por encima de otros elementos */
+    max-width: 80%; /* Limita el ancho para que no ocupe toda la pantalla */
+    text-align: center;
+    pointer-events: none; /* No interactúa con el ratón */
+}
 
+.subtitle-container.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ... (resto de tu CSS existente) ... */
 /* Reset and Base Styles */
 * {
     margin: 0;
