@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emiliano Méndez - Frontend Developer</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.8.0/dist/vanilla-tilt.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <section id="hero" class="hero-section">
+        <div class="hero-content">
+            <div class="hero-left">
+                <h1 class="hero-name">Emiliano Méndez</h1>
+                <p class="hero-subtitle">Frontend en formación, explorando nuevas formas de crear.</p>
+                <button id="soundToggleButton" style="display:none; margin-top: 20px; padding: 10px 20px; border: none; background-color: var(--color-accent); color: var(--color-white); border-radius: 8px; cursor: pointer; transition: var(--transition-smooth);">Activar Sonido</button>
+            </div>
+            <div class="hero-right">
+                <div id="cube-container" class="cube-container"></div>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+    
+    <section id="about" class="section about-section">
+        <div class="container">
+            <div class="section-content">
+                <h2 class="section-title" id="about-title">Sobre mí</h2>
+                <p class="about-text" id="about-text-1">
+                    Mi fascinación por la forma en que el código da vida a ideas visuales me llevó al mundo del desarrollo frontend. Me apasiona transformar conceptos abstractos en interfaces intuitivas y estéticamente agradables. Estoy enfocado en el diseño visual y la creación de experiencias digitales memorables, siempre buscando la forma más limpia y eficiente de construir. Actualmente, estoy inmerso en el ecosistema de JavaScript y explorando las posibilidades de frameworks modernos como React. Mi objetivo es construir productos que no solo funcionen perfectamente, sino que también inspiren y conecten con las personas de manera auténtica. Siempre estoy aprendiendo y buscando nuevas herramientas y técnicas para mejorar mi trabajo.
+                </p>
+                <p class="about-text" id="about-text-2" style="display:none;"></p> 
+                </div>
+        </div>
+    </section>
+
+    <section id="objective" class="section objective-section">
+        <div class="container">
+            <div class="section-content">
+                <h2 class="section-title">Objetivo</h2>
+                <p class="objective-text">
+                    Desarrollándome en frontend y trabajando en ideas propias que marquen la diferencia.
+                </p>
+                <p class="objective-quote">
+                    "A veces, las ideas más grandes empiezan como sombras..."
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="projects" class="section projects-section">
+        <div class="container">
+            <h2 class="section-title" id="projects-title">Proyectos</h2>
+            <div class="projects-grid">
+                <div class="project-card" data-tilt data-tilt-max="15" data-tilt-speed="1000">
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <h3 class="card-title">Próximamente</h3>
+                        <p class="card-description">Explorando nuevas posibilidades</p>
+                    </div>
+                </div>
+                
+                <div class="project-card" data-tilt data-tilt-max="15" data-tilt-speed="1000">
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <h3 class="card-title">En desarrollo</h3>
+                        <p class="card-description">Ideas tomando forma</p>
+                    </div>
+                </div>
+                
+                <div class="project-card" data-tilt data-tilt-max="15" data-tilt-speed="1000">
+                    <div class="card-content">
+                        <div class="card-icon">
+                            <div class="loading-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                        <h3 class="card-title">Explorando nuevas ideas</h3>
+                        <p class="card-description">El futuro se está escribiendo</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <span class="contact-label">Teléfono</span>
+                        <span class="contact-value">+54 11 3027 9349</span>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-label">Correo</span>
+                        <span class="contact-value">emimenndezz@gmail.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <span class="contact-label">GitHub</span>
+                        <a href="https://github.com/emilianomendez" class="contact-value github-link" target="_blank" rel="noopener noreferrer">
+                            github.com/emilianomendez
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <audio id="audioBienvenidaCasual" src="audio_bienvenida.mp3" preload="auto"></audio>
+    <audio id="audioCuboSarcasmo" src="audios_cubo_interaccion.mp3" preload="auto"></audio>
+    <audio id="audioProyectosBurlon" src="audios_proyectos_introduccion.mp3" preload="auto"></audio>
+    <audio id="audioSobreMiNarrativo" src="audios_sobre_mi_descripcion.mp3" preload="auto"></audio>
+    <audio id="audioVersoColor" src="audios_verso_1.mp3" preload="auto"></audio>
+    <audio id="audioVersoIrritado" src="audios_verso_2.mp3" preload="auto"></audio>
+    <audio id="audioVersoRepetido" src="audios_verso_3.mp3" preload="auto"></audio>
+
+    <div id="subtitleContainer" class="subtitle-container">
+        <span id="subtitleText"></span>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
