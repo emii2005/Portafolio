@@ -30,7 +30,7 @@ const STORAGE_KEY_IS_ALTERED_SESSION = 'isAlteredSession';
 // Contadores de clics (projectsClickCount se mantiene del original)
 let projectsClickCount = 0;
 let nameClickCount = 0; // NUEVO: Contador para los clics en el nombre de Emiliano Méndez
-let idiotaSequenceIndex = 0; // NUEVO: Índice para la secuencia de audios 'basta' y 'idiota'
+let idiotaSequenceIndex = 0; // NUEVO: Índice para la secuencia de audios 'idiota random'
 
 // Versos aleatorios (no se reproducen automáticamente, solo con interacción del cubo)
 const randomVerses = [
@@ -56,12 +56,12 @@ const bastaAudios = [
 ];
 
 // NUEVO: Audios "Idiota" (CON TRADUCCIONES ACTUALIZADAS)
-const idiotaAudiosRandom = [ // Audios que se eligen aleatoriamente antes del final
+const idiotaAudiosRandom = [ // Audios que se eligen aleatoriamente antes del final (clic 6 al 11)
     { id: 'audioIdiota1', text: '¿SABÉS QUÉ? ¡QUE TE DEN! Ahora no vas a poder escuchar ningún audio de esta web.. Que te jodan. idiota.' },
     { id: 'audioIdiota2', text: '¿SABÉS QUÉ? ¡QUE TE DEN! Ahora no vas a poder escuchar ningún audio de esta web.. Que te jodan. idiota.' },
 ];
-// Este audio ahora BLOQUEARÁ el sonido en la sesión actual al terminar
-const idiotaAudioFinal = { id: 'audioIdiota3', text: '¿SABÉS QUÉ? ¡QUE TE DEN! Ahora no vas a poder escuchar ningún audio de esta web.. Que te jodan. idiota.' };
+// Este audio ahora BLOQUEARÁ el sonido en la sesión actual al terminar (clic 12)
+const idiotaAudioFinal = { id: 'audioIdiota3', text: '¡Sos un idiota! Conmigo no vas a escuchar más nada. Adiós a los sonidos de esta web.' }; // Mantengo este texto para el audio final que bloquea
 
 
 // Referencias a elementos HTML para eventos de clic
@@ -184,6 +184,9 @@ function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null)
                 if (soundToggleButton) {
                     soundToggleButton.textContent = 'Activar Sonido';
                     soundToggleButton.style.display = 'block'; // Mostrar el botón si estaba oculto
+                    soundToggleButton.disabled = false; // Asegurarse de que esté habilitado para que el usuario pueda hacer clic
+                    soundToggleButton.style.opacity = '1';
+                    soundToggleButton.style.cursor = 'pointer';
                 }
             }
             stopCurrentAudio();
@@ -278,7 +281,7 @@ function finishIdiotaSequence() {
         // Marcar en sessionStorage que el audio fue bloqueado por la secuencia idiota
         sessionStorage.setItem(STORAGE_KEY_AUDIO_BLOCKED, 'true');
         // Marcar que la sesión debe ser "alterada" en la próxima carga (aunque el audio esté bloqueado)
-        sessionStorage.setItem(STORAGE_KEY_IS_ALTERED_SESSION, 'true');
+        sessionStorage.setItem(STORAGE_KEY_IS_ALTERED_SESSION, 'true'); // Esto se usará para la "bienvenida idiota" si el bloqueo es temporal
 
         // Actualizar el botón para que indique que el sonido está desactivado y hacerlo visible
         if (soundToggleButton) {
@@ -524,12 +527,14 @@ function handleWelcomeAudioPlayback(fromManualClick = false) {
             // Si viene de un clic manual, ya se sabe que el audio debe estar habilitado
             // Esto asegura que audioEnabled sea true si el usuario hace clic.
             if (fromManualClick) {
-                audioEnabled = true;
-                soundToggleButton.textContent = 'Desactivar Sonido';
-                soundToggleButton.style.display = 'block'; // Asegurarse de que esté visible
-                soundToggleButton.disabled = false; // Asegurar que no esté deshabilitado si el usuario lo activó
-                soundToggleButton.style.opacity = '1';
-                soundToggleButton.style.cursor = 'pointer';
+                audioEnabled = true; // Habilitar audio globalmente
+                if (soundToggleButton) {
+                    soundToggleButton.textContent = 'Desactivar Sonido';
+                    soundToggleButton.style.display = 'block'; // Asegurarse de que esté visible
+                    soundToggleButton.disabled = false; // Asegurar que no esté deshabilitado si el usuario lo activó
+                    soundToggleButton.style.opacity = '1';
+                    soundToggleButton.style.cursor = 'pointer';
+                }
             }
         } else {
             // Si la bienvenida ya se reprodujo en esta carga y no es un clic manual, solo iniciar el temporizador
@@ -575,6 +580,8 @@ function initializeSession() {
             soundToggleButton.style.opacity = '0.5';
             soundToggleButton.style.cursor = 'not-allowed';
         }
+        // Limpiamos la bandera de sesión alterada si el audio está bloqueado, para que no se active de nuevo por error.
+        sessionStorage.removeItem(STORAGE_KEY_IS_ALTERED_SESSION); 
         // No se reproduce bienvenida ni se activa temporizador. No hay interacción de audio.
     } else if (wasAlteredSession) {
         // Caso 2: El audio NO estaba bloqueado PERO la sesión anterior fue marcada como "alterada".
@@ -587,13 +594,13 @@ function initializeSession() {
         // Limpiamos la bandera de sesión alterada para la próxima recarga
         sessionStorage.removeItem(STORAGE_KEY_IS_ALTERED_SESSION);
 
-        handleWelcomeAudioPlayback(false); // Reproducir bienvenida alterada.
-        // Si el autoplay falla aquí, handleWelcomeAudioPlayback lo manejará.
+        handleWelcomeAudioPlayback(false); // Reproducir bienvenida alterada (false porque no es un clic manual).
+        // Si el autoplay falla aquí, handleWelcomeAudioPlayback lo manejará y mostrará el botón.
 
         // El botón debe reflejar el estado actual:
         if (soundToggleButton) {
-            soundToggleButton.textContent = 'Desactivar Sonido';
-            soundToggleButton.style.display = 'block'; // Siempre visible en alterada para dar control
+            soundToggleButton.textContent = 'Desactivar Sonido'; // En alterada el audio está ON por defecto
+            soundToggleButton.style.display = 'block'; // Siempre visible para dar control
         }
 
     } else {
@@ -656,6 +663,7 @@ function setupSoundToggleButton() {
     if (currentSession === SESSION_NORMAL) {
         const bienvenidaAudio = document.getElementById('audioBienvenidaCasual');
         if (bienvenidaAudio) {
+            // Intento de reproducción automática. Esto puede fallar en muchos navegadores.
             bienvenidaAudio.play()
                 .then(() => {
                     audioEnabled = true; // Autoplay exitoso
@@ -669,6 +677,9 @@ function setupSoundToggleButton() {
                     console.warn("%c[Sound Warn] Autoplay de bienvenida NORMAL bloqueado. El botón 'Activar Sonido' está visible para interacción del usuario.", 'color: yellow;', e);
                     soundToggleButton.style.display = 'block'; // Mostrar el botón si el autoplay falla
                     audioEnabled = false; // Asegurarse de que el audio esté deshabilitado si el autoplay falla
+                    soundToggleButton.disabled = false; // Asegurar que el botón esté habilitado para el clic
+                    soundToggleButton.style.opacity = '1';
+                    soundToggleButton.style.cursor = 'pointer';
                 });
         } else {
             console.error("%c[Sound Debug] Audio de bienvenida NORMAL no encontrado en HTML.", 'color: red;');
@@ -681,6 +692,9 @@ function setupSoundToggleButton() {
     else if (currentSession === SESSION_ALTERADA) {
         soundToggleButton.textContent = 'Desactivar Sonido'; // En alterada el audio está ON por defecto
         soundToggleButton.style.display = 'block'; // Siempre visible
+        soundToggleButton.disabled = false;
+        soundToggleButton.style.opacity = '1';
+        soundToggleButton.style.cursor = 'pointer';
     }
 }
 
@@ -704,16 +718,17 @@ function initVoiceInteractions() {
                 return;
             }
             
+            // Incrementar el contador solo si el audio está habilitado
             nameClickCount++;
 
-            // Secuencia "Basta"
+            // Secuencia "Basta" (clics 1 al 5)
             if (nameClickCount >= 1 && nameClickCount <= bastaAudios.length) {
                 const audioData = bastaAudios[nameClickCount - 1];
                 playAudioWithSubtitle(audioData.id, audioData.text);
             } 
             // Audios aleatorios "Idiota" (del clic 6 al 11)
             else if (nameClickCount > bastaAudios.length && nameClickCount < 12) {
-                // Asegurarse de que no se repita el último si hay suficientes
+                // Asegurarse de que no se repita el último si hay suficientes audios aleatorios
                 let nextIdiotaIndex;
                 do {
                     nextIdiotaIndex = Math.floor(Math.random() * idiotaAudiosRandom.length);
@@ -727,9 +742,9 @@ function initVoiceInteractions() {
             // Audio final "Sos un idiota" y bloqueo (al clic 12)
             else if (nameClickCount === 12) {
                 finishIdiotaSequence();
-                // No resetear nameClickCount aquí, ya que el sistema de bloqueo debería encargarse.
-                // Si la secuencia se reinicia en una sesión ALTERADA, nameClickCount se reseteará al principio
-                // de un nuevo ciclo de 12 clics.
+                // Opcional: Podrías resetear nameClickCount aquí si quieres que la secuencia pueda repetirse
+                // después de un reinicio de sesión alterada, pero el bloqueo de audio ya lo impide para esta sesión.
+                nameClickCount = 0; // Reinicia para futuras sesiones alteradas o si el bloqueo no es persistente.
             }
         });
     }
