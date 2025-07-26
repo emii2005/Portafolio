@@ -7,7 +7,9 @@ let cubeGroup;
 
 // --- Variables de Control Globales ---
 let currentAudio = null; // Para controlar qué audio se está reproduciendo
-let audioEnabled = false; // ESTADO CLAVE: SIEMPRE inicia en false. El usuario debe activarlo.
+// CRUCIAL: audioEnabled comienza en true para intentar el autoplay de bienvenida.
+// Si el autoplay falla, se ajustará a false y el botón se hará visible.
+let audioEnabled = true; 
 
 // Bandera para el modo idiota persistente en localStorage para una sesión
 let idiotaWelcomeTriggered = localStorage.getItem('idiotaWelcomeTriggered') === 'true'; 
@@ -154,7 +156,12 @@ function playAudioWithSubtitle(audioId, subtitleContent, onEndedCallback = null)
             
         }).catch(e => {
             console.error(`[Audio Error] Error al reproducir audio ${audioId}:`, e);
-            console.warn(`[Audio Warn] Asegúrate de que el usuario haga un primer clic en el botón 'Activar Sonido'.`);
+            console.warn(`[Audio Warn] Autoplay puede ser bloqueado por el navegador. Ajustando audioEnabled a false.`);
+            audioEnabled = false; // Deshabilitar audio si autoplay falla
+            if (soundToggleButton) {
+                soundToggleButton.textContent = 'Activar Sonido';
+                soundToggleButton.style.display = 'block'; // Mostrar el botón
+            }
             stopCurrentAudio();
             if (onEndedCallback) onEndedCallback(); // Asegurar que el callback se ejecute incluso en error
         });
@@ -443,18 +450,13 @@ function setupSoundToggleButton() {
         return;
     }
 
-    // --- CRUCIAL: Asegurar que el audio siempre inicie DESACTIVADO ---
-    audioEnabled = false; 
-    soundToggleButton.textContent = 'Activar Sonido'; // Mostrar siempre este texto al cargar
-    soundToggleButton.style.display = 'block'; // Asegurar que el botón esté visible
-
-    // No es necesario deshabilitarlo, solo está en estado "Activar" por defecto.
-    // Lo dejo explícito para claridad, aunque style.opacity/cursor ya lo hacen visible y clickable.
+    // Inicialmente, el botón estará oculto si el autoplay funciona.
+    // Si el autoplay falla, se mostrará como "Activar Sonido".
+    soundToggleButton.style.display = 'none'; 
     soundToggleButton.disabled = false;
     soundToggleButton.style.opacity = '1';
     soundToggleButton.style.cursor = 'pointer';
 
-    // --- Lógica del click del botón ---
     soundToggleButton.addEventListener('click', () => {
         // Al hacer clic, se invierte el estado de audioEnabled
         audioEnabled = !audioEnabled;
@@ -463,55 +465,82 @@ function setupSoundToggleButton() {
         console.log(`[Sound Toggle] audioEnabled ahora es: ${audioEnabled}`); 
         
         if (audioEnabled) {
-            // Si el audio se acaba de activar por el usuario
-            
-            // Determinar qué audio de bienvenida reproducir
-            let welcomeAudioId;
-            let welcomeSubtitleText;
-            const bienvenidaCasual = document.getElementById('audioBienvenidaCasual');
-            const bienvenidaIdiota = document.getElementById('audioBienvenidaIdiota');
-
-            if (idiotaWelcomeTriggered) {
-                // Si el modo idiota se activó en la sesión anterior
-                welcomeAudioId = 'audioBienvenidaIdiota';
-                welcomeSubtitleText = "¡Volviste, idiota! ¿No te bastó con lo que pasó antes? Ya te advertí.";
-            } else {
-                // Modo normal
-                welcomeAudioId = 'audioBienvenidaCasual';
-                welcomeSubtitleText = "Ahg, otra vez vos... ¿Qué onda? ¿Qué hacés acá? Sí, la web está en español, pero el audio en inglés porque me da paja grabar mi voz, je. Soy argentino por si querés saber.";
-            }
-
-            const currentWelcomeAudio = document.getElementById(welcomeAudioId);
-
-            // Solo reproducir la bienvenida si existe y no se ha reproducido ya en esta sesión.
-            if (currentWelcomeAudio && !currentWelcomeAudio.dataset.played) {
-                playAudioWithSubtitle(welcomeAudioId, welcomeSubtitleText, () => {
-                    // Callback después de reproducir el audio de bienvenida
-                    if (idiotaWelcomeTriggered) {
-                        // Si se reprodujo la bienvenida idiota, limpiar la bandera para la siguiente sesión
-                        localStorage.removeItem('idiotaWelcomeTriggered'); 
-                        console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada. Próxima recarga será normal.");
-                    }
-                    toggleInactivityTimer(true); // Iniciar el temporizador de audios aleatorios después de la bienvenida
-                });
-                currentWelcomeAudio.dataset.played = 'true'; // Marcar como reproducido para esta sesión
-            } else if (!currentWelcomeAudio) {
-                console.error(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) no encontrado.`);
-                if (idiotaWelcomeTriggered) { // Si el audio idiota no existe, limpiar la bandera para no quedarse atascado
-                    localStorage.removeItem('idiotaWelcomeTriggered');
-                    console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada debido a audio no encontrado.");
-                }
-                toggleInactivityTimer(true); // Intentar iniciar temporizador de todas formas
-            } else { 
-                // El audio de bienvenida ya se reprodujo en esta sesión (ej: usuario desactivó/activó varias veces)
-                console.log(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) ya se reprodujo en esta sesión.`);
-                toggleInactivityTimer(true); // Iniciar el temporizador (si no hay audio actual)
-            }
+            // Si el audio se acaba de activar por el usuario, intentamos reproducir la bienvenida
+            // solo si no se ha reproducido ya en esta sesión.
+            handleWelcomeAudioPlayback(true); // Pasar 'true' para indicar que es un click manual
         } else {
             // Si el audio se desactiva manualmente
             toggleInactivityTimer(false); // Detener el temporizador de audios aleatorios
         }
     });
+}
+
+/**
+ * Función central para manejar la reproducción del audio de bienvenida.
+ * @param {boolean} fromManualClick - Indica si la llamada viene de un clic manual en el botón.
+ */
+function handleWelcomeAudioPlayback(fromManualClick = false) {
+    let welcomeAudioId;
+    let welcomeSubtitleText;
+    const bienvenidaCasual = document.getElementById('audioBienvenidaCasual');
+    const bienvenidaIdiota = document.getElementById('audioBienvenidaIdiota');
+
+    if (idiotaWelcomeTriggered) {
+        // Si el modo idiota se activó en la sesión anterior, reproducir la bienvenida idiota
+        welcomeAudioId = 'audioBienvenidaIdiota';
+        welcomeSubtitleText = "¡Volviste, idiota! ¿No te bastó con lo que pasó antes? Ya te advertí.";
+    } else {
+        // Modo normal
+        welcomeAudioId = 'audioBienvenidaCasual';
+        welcomeSubtitleText = "Ahg, otra vez vos... ¿Qué onda? ¿Qué hacés acá? Sí, la web está en español, pero el audio en inglés porque me da paja grabar mi voz, je. Soy argentino por si querés saber.";
+    }
+
+    const currentWelcomeAudio = document.getElementById(welcomeAudioId);
+
+    // Solo reproducir la bienvenida si existe y no se ha reproducido ya en esta sesión.
+    if (currentWelcomeAudio && !currentWelcomeAudio.dataset.played) {
+        playAudioWithSubtitle(welcomeAudioId, welcomeSubtitleText, () => {
+            // Callback después de reproducir el audio de bienvenida
+            if (idiotaWelcomeTriggered) {
+                // Si se reprodujo la bienvenida idiota, limpiar la bandera para la siguiente sesión
+                localStorage.removeItem('idiotaWelcomeTriggered'); 
+                console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada. Próxima recarga será normal.");
+            }
+            toggleInactivityTimer(true); // Iniciar el temporizador de audios aleatorios después de la bienvenida
+        });
+        currentWelcomeAudio.dataset.played = 'true'; // Marcar como reproducido para esta sesión
+        if (soundToggleButton) {
+            soundToggleButton.textContent = 'Desactivar Sonido'; // Poner el botón en estado 'Desactivar'
+            soundToggleButton.style.display = 'none'; // Ocultar el botón si el autoplay fue exitoso
+        }
+    } else if (!currentWelcomeAudio) {
+        console.error(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) no encontrado.`);
+        if (idiotaWelcomeTriggered) { // Si el audio idiota no existe, limpiar la bandera para no quedarse atascado
+            localStorage.removeItem('idiotaWelcomeTriggered');
+            console.log("[localStorage] Bandera 'idiotaWelcomeTriggered' eliminada debido a audio no encontrado.");
+        }
+        audioEnabled = false; // Deshabilitar audio si no se encuentra
+        if (soundToggleButton) {
+            soundToggleButton.textContent = 'Activar Sonido';
+            soundToggleButton.style.display = 'block'; // Mostrar el botón
+        }
+        toggleInactivityTimer(false); // No iniciar temporizador si no hay audio de bienvenida
+    } else if (fromManualClick) { 
+        // Si ya se reprodujo en esta sesión (ej: usuario desactivó/activó varias veces),
+        // y se activó manualmente, solo iniciar el temporizador.
+        console.log(`[Sound Debug] Audio de bienvenida (${welcomeAudioId}) ya se reprodujo en esta sesión.`);
+        toggleInactivityTimer(true); // Iniciar el temporizador (si no hay audio actual)
+    } else {
+        // Si el autoplay ya se reprodujo o falló y el botón ya está visible.
+        console.log(`[Sound Debug] Autoplay de bienvenida (${welcomeAudioId}) ya se intentó.`);
+        // No hacer nada, el estado del botón y audioEnabled ya se gestionaron.
+        if (!audioEnabled && soundToggleButton.style.display === 'none') {
+            // Si por alguna razón audioEnabled es false pero el botón está oculto (error en el autoplay)
+            soundToggleButton.style.display = 'block';
+            soundToggleButton.textContent = 'Activar Sonido';
+        }
+        toggleInactivityTimer(true); // Iniciar timer si audioEnabled es true y no hay audio sonando.
+    }
 }
 
 
@@ -585,7 +614,12 @@ function initVoiceInteractions() {
 
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    setupSoundToggleButton(); // Configura el botón y no reproduce nada aún
+    setupSoundToggleButton(); // Configura el botón
+
+    // Intentar reproducir el audio de bienvenida automáticamente al cargar la página
+    // Esto es lo que define el comportamiento inicial de "autoplay".
+    handleWelcomeAudioPlayback(); 
+
     initThreeJS();
     
     // Un pequeño retraso para asegurar que todos los elementos estén renderizados
